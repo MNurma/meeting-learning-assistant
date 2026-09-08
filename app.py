@@ -4,6 +4,7 @@ import re
 import time
 import shutil
 import stat
+import subprocess
 import tempfile
 
 import streamlit as st
@@ -31,7 +32,25 @@ if not os.path.exists(_ffmpeg_target):
 
 os.environ["PATH"] = _ffmpeg_dir + os.pathsep + os.environ["PATH"]
 AudioSegment.converter = _ffmpeg_target
-AudioSegment.ffmpeg = _ffmpeg_target
+
+
+def convert_to_wav(input_path, output_path):
+    """Konversi file audio/video apa pun ke WAV memakai ffmpeg langsung,
+    supaya proses berikutnya tidak butuh ffprobe sama sekali."""
+    cmd = [
+        _ffmpeg_target,
+        "-y",
+        "-i", input_path,
+        "-ar", "16000",
+        "-ac", "1",
+        output_path,
+    ]
+    subprocess.run(
+        cmd,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 # =========================
@@ -81,9 +100,6 @@ def load_whisper_model():
 # =========================
 
 def parse_inline_formatting(text):
-    """Pecah teks jadi list (teks, is_bold, is_italic).
-    Menangani **bold** dan *italic*.
-    """
     parts = []
     pattern = re.compile(r"\*\*(.+?)\*\*|\*(.+?)\*")
     last_end = 0
@@ -108,7 +124,6 @@ def parse_inline_formatting(text):
 
 
 def sanitize_for_pdf(text):
-    """Ganti karakter unicode yang tidak didukung font Helvetica dengan versi ASCII."""
     replacements = {
         "—": "-",
         "–": "-",
@@ -276,6 +291,9 @@ if uploaded_file:
 
     if st.button("🚀 Proses Audio"):
 
+        temp_file_path = None
+        wav_path = None
+
         try:
             with st.spinner("Memuat model transkripsi (Whisper)..."):
                 model = load_whisper_model()
@@ -288,8 +306,13 @@ if uploaded_file:
             status_text = st.empty()
             progress_bar = st.progress(0)
 
+            status_text.write("Mengonversi audio ke format standar...")
+
+            wav_path = temp_file_path + "_converted.wav"
+            convert_to_wav(temp_file_path, wav_path)
+
             status_text.write("Menganalisis file audio...")
-            audio = AudioSegment.from_file(temp_file_path)
+            audio = AudioSegment.from_wav(wav_path)
 
             total_duration_ms = len(audio)
             chunk_length_ms = 30 * 1000
@@ -324,7 +347,6 @@ if uploaded_file:
                 )
 
             transcript = " ".join(transcript_parts).strip()
-            os.remove(temp_file_path)
 
             progress_bar.progress(1.0)
             status_text.write("Transkripsi selesai!")
@@ -366,9 +388,15 @@ TRANSKRIP:
         except Exception as e:
             st.error(f"Terjadi error: {e}")
 
+        finally:
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+            if wav_path and os.path.exists(wav_path):
+                os.remove(wav_path)
+
 
 # =========================
-# TAMPILKAN HASIL (dari session_state, tetap tampil walau di-rerun)
+# TAMPILKAN HASIL
 # =========================
 
 if st.session_state.transcript and st.session_state.result_text:
