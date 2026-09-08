@@ -1,3 +1,4 @@
 streamlit
 openai-whisper
 google-generativeai
+imageio-ffmpeg

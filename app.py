@@ -6,6 +6,13 @@ import whisper
 import google.generativeai as genai
 
 
+import imageio_ffmpeg
+
+# Pastikan Python bisa menemukan ffmpeg (dari package imageio-ffmpeg)
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+os.environ["PATH"] = os.path.dirname(ffmpeg_path) + os.pathsep + os.environ["PATH"]
+
+
 # =========================
 # KONFIGURASI HALAMAN
 # =========================
