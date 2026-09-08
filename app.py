@@ -6,11 +6,22 @@ import whisper
 import google.generativeai as genai
 
 
+import shutil
+import stat
 import imageio_ffmpeg
 
-# Pastikan Python bisa menemukan ffmpeg (dari package imageio-ffmpeg)
-ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
-os.environ["PATH"] = os.path.dirname(ffmpeg_path) + os.pathsep + os.environ["PATH"]
+# Pastikan ada file bernama persis "ffmpeg" yang bisa ditemukan Whisper
+_ffmpeg_source = imageio_ffmpeg.get_ffmpeg_exe()
+_ffmpeg_dir = os.path.join(tempfile.gettempdir(), "ffmpeg_bin")
+os.makedirs(_ffmpeg_dir, exist_ok=True)
+_ffmpeg_target = os.path.join(_ffmpeg_dir, "ffmpeg")
+
+if not os.path.exists(_ffmpeg_target):
+    shutil.copy(_ffmpeg_source, _ffmpeg_target)
+    st_mode = os.stat(_ffmpeg_target).st_mode
+    os.chmod(_ffmpeg_target, st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+os.environ["PATH"] = _ffmpeg_dir + os.pathsep + os.environ["PATH"]
 
 
 # =========================
