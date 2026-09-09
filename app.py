@@ -124,6 +124,8 @@ def parse_inline_formatting(text):
 
 
 def sanitize_for_pdf(text):
+    """Ganti karakter unicode umum, lalu buang semua karakter
+    yang masih tidak didukung font Helvetica (encoding latin-1)."""
     replacements = {
         "—": "-",
         "–": "-",
@@ -137,6 +139,12 @@ def sanitize_for_pdf(text):
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
+
+    # Buang karakter apa pun yang tidak bisa di-encode ke latin-1
+    # (misalnya karakter China, Arab, emoji, dsb yang tidak sengaja
+    # muncul dari hasil transkripsi Whisper)
+    text = text.encode("latin-1", errors="ignore").decode("latin-1")
+
     return text
 
 
@@ -353,7 +361,7 @@ if uploaded_file:
 
             with st.spinner("Membuat kesimpulan dan bahan belajar... (biasanya 10-30 detik)"):
 
-                gemini_model = genai.GenerativeModel("gemini-3.6-flash")
+                gemini_model = genai.GenerativeModel("gemini-3.5-flash-lite")
 
                 prompt = f"""
 Kamu adalah asisten belajar untuk mahasiswa magang
